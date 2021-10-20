@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"context"
+	"encoding/json"
 	"strconv"
+	"time"
 
 	"github.com/NazeemNato/tuto/src/database"
 	"github.com/NazeemNato/tuto/src/models"
@@ -20,9 +23,8 @@ func CreateProduct(c *fiber.Ctx) error {
 		return err
 	}
 	database.DB.Create(&products)
-	return c.JSON(products)	
+	return c.JSON(products)
 }
-
 
 func GetProduct(c *fiber.Ctx) error {
 	var product models.Product
@@ -51,4 +53,27 @@ func DeleteProduct(c *fiber.Ctx) error {
 
 	database.DB.Delete(&product)
 	return nil
+}
+
+func ProductFrontend(c *fiber.Ctx) error {
+	var products []models.Product
+	var ctx = context.Background()
+	result, err := database.Cache.Get(ctx, "product_frontend").Result()
+
+	if err != nil {
+		database.DB.Find(&products)
+
+		bytes, err := json.Marshal(products)
+
+		if err != nil {
+			panic(err)
+		}
+
+		if errKey := database.Cache.Set(ctx, "product_frontend", bytes, 30*time.Minute).Err(); errKey != nil {
+			panic(errKey)
+		}
+	} else {
+		json.Unmarshal([]byte(result), &products)
+	}
+	return c.JSON(products)
 }

@@ -13,7 +13,8 @@ func main() {
 
 	database.Connnect()
 	database.AutoMigrate()
-
+	database.SetupRedis()
+	
 	app := fiber.New()
 
 	app.Use(cors.New(cors.Config{AllowCredentials: true}))
