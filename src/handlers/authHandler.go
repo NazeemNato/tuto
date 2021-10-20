@@ -1,13 +1,12 @@
 package handlers
 
 import (
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/NazeemNato/tuto/src/database"
 	"github.com/NazeemNato/tuto/src/middlewares"
 	"github.com/NazeemNato/tuto/src/models"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -22,7 +21,7 @@ func Register(c *fiber.Ctx) error {
 		Firstname:    data["first_name"],
 		Lastname:     data["last_name"],
 		Email:        data["email"],
-		IsAmbassador: false,
+		IsAmbassador: strings.Contains(c.Path(), "/api/ambassador"),
 	}
 	// set password
 	user.SetPassword(data["password"])
@@ -51,12 +50,20 @@ func Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Invalid password"})
 	}
 
-	var payload = jwt.StandardClaims{
-		Subject:   strconv.Itoa(int(user.Id)),
-		ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
+	IsAmbassador := strings.Contains(c.Path(), "/api/ambassador")
+	var scope string
+
+	if IsAmbassador {
+		scope = "ambassador"
+	} else {
+		scope = "admin"
 	}
 
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, payload).SignedString([]byte("buckthorn"))
+	if !IsAmbassador && user.IsAmbassador {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Unauthorized"})
+	}
+
+	token, err := middlewares.GenerateJWT(user.Id, scope)
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "something went wrong"})
@@ -132,7 +139,7 @@ func UpdatePassword(c *fiber.Ctx) error {
 	user.Id = id
 
 	user.SetPassword(data["password"])
-	
+
 	database.DB.Model(&user).Updates(&user)
 
 	return c.JSON(fiber.Map{"message": "Password updated"})
