@@ -20,6 +20,11 @@ func (user *User) SetPassword(pwd string) {
 	user.Password = password
 }
 
+
+func (user *User) Name() string {
+	return user.Firstname + " " + user.Lastname
+}
+
 func (user *User) ComparePassword(pwd string) bool {
 	err := bcrypt.CompareHashAndPassword(user.Password, []byte(pwd))
 	return err == nil
